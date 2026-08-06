@@ -13,7 +13,10 @@ module.exports = {
   // (src/services/mikrotikMock.js) and short-circuits Paynow/Stripe with
   // simulated approvals, so the full app flow can be exercised without a
   // real router or payment credentials.
-  mockMode: process.env.MOCK_MODE === 'true',
+  // Forced on when running on Vercel (process.env.VERCEL is set by their
+  // platform) — there is no MikroTik reachable from there, so real mode
+  // would be both broken and unsafe (it would try to use real payment keys).
+  mockMode: process.env.MOCK_MODE === 'true' || !!process.env.VERCEL,
 
   router: {
     host: required('ROUTER_HOST', '10.5.5.1'),

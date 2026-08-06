@@ -7,7 +7,12 @@ const config = require('../config');
 // Uses Node's built-in SQLite module (Node 22.5+) rather than a native addon
 // like better-sqlite3 — no compiler/Python toolchain needed, which matters a
 // lot when this has to install cleanly inside Termux on a tablet.
-const dataDir = path.join(__dirname, '..', '..', 'data');
+//
+// On Vercel the project directory is read-only — only /tmp is writable, and
+// it's wiped on every cold start. That's fine here because Vercel only ever
+// runs this app in MOCK_MODE (see config.js): the "database" is disposable
+// simulated data, not the real system of record.
+const dataDir = process.env.VERCEL ? '/tmp/data' : path.join(__dirname, '..', '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new DatabaseSync(path.join(dataDir, 'hotspot.db'));

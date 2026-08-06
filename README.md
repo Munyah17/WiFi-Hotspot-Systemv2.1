@@ -23,6 +23,25 @@ for in-memory fakes (`src/services/mikrotikMock.js`, and short-circuits inside
 shows up in admin → pause/continue/kick) without a router or payment credentials. Digital
 payments auto-"approve" ~5s after initiating. **Set it back to `false` before real use.**
 
+### Testing on Vercel
+
+This is normally a long-running local server (`app.listen()`), which isn't how Vercel's
+serverless functions work — `api/index.js` exports the same Express app for Vercel's Node
+builder to wrap, and `vercel.json` routes every path through it. This is **for UI/flow
+testing only** — remove the Vercel project once you're done:
+
+- It always runs in `MOCK_MODE`, forced on automatically (`config.js` checks
+  `process.env.VERCEL`) regardless of any env var you set — there's no MikroTik reachable
+  from Vercel, and it must never pick up real payment keys.
+- The SQLite file lives in `/tmp` on Vercel (the project directory is read-only), which is
+  wiped on cold starts — mock data will periodically reset. That's expected.
+- Sessions use an in-memory store, which doesn't survive across Vercel's serverless
+  instances — login can appear to randomly log you out between requests. Not worth fixing
+  for a throwaway preview.
+- None of this makes Vercel a real deployment target for the actual system — see "Why it
+  has to run locally" above. This exists purely so the UI/flow can be clicked through and
+  shared as a link during testing.
+
 ## Setup
 
 ```
