@@ -7,10 +7,10 @@
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-900">
-  <div class="max-w-lg mx-auto px-4 py-6">
+  <div class="max-w-2xl mx-auto px-4 py-6">
     <h1 class="text-xl font-bold mb-4">Cashier</h1>
 
-    <div id="login-box" class="bg-white rounded-xl p-4 shadow-sm space-y-3">
+    <div id="login-box" class="bg-white rounded-xl p-4 shadow-sm space-y-3 max-w-sm">
       <input id="login-phone" placeholder="Phone number" class="w-full border rounded-lg px-3 py-2" />
       <input id="login-password" type="password" placeholder="Password" class="w-full border rounded-lg px-3 py-2" />
       <button id="login-btn" class="w-full py-2 rounded-lg bg-slate-900 text-white font-medium">Log In</button>
@@ -18,6 +18,32 @@
     </div>
 
     <div id="app-box" class="hidden space-y-4">
+      <!-- Shift -->
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h2 class="font-semibold mb-2">Shift</h2>
+        <div id="shift-closed" class="hidden flex items-end gap-2">
+          <div class="flex-1">
+            <label class="text-sm text-slate-500">Opening float ($)</label>
+            <input id="opening-float" type="number" step="0.01" value="0" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <button id="open-shift-btn" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium">Open Shift</button>
+        </div>
+        <div id="shift-open" class="hidden space-y-2 text-sm">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-slate-50 rounded-lg p-2"><span class="text-slate-500 block">Opening float</span><span id="shift-opening" class="font-semibold"></span></div>
+            <div class="bg-slate-50 rounded-lg p-2"><span class="text-slate-500 block">Expected cash</span><span id="shift-expected" class="font-semibold"></span></div>
+          </div>
+          <div id="shift-totals" class="text-slate-500"></div>
+          <div class="flex items-end gap-2 pt-2">
+            <div class="flex-1">
+              <label class="text-sm text-slate-500">Cash counted at close ($)</label>
+              <input id="closing-counted" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2" />
+            </div>
+            <button id="close-shift-btn" class="px-4 py-2 rounded-lg bg-slate-900 text-white font-medium">Close Shift</button>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-white rounded-xl p-4 shadow-sm">
         <h2 class="font-semibold mb-2">Sell a Voucher (Cash)</h2>
         <div id="packages" class="space-y-2"></div>
@@ -28,6 +54,48 @@
         <p id="receipt-package"></p>
         <p id="receipt-price"></p>
         <button onclick="window.print()" class="mt-3 w-full py-2 rounded-lg bg-slate-900 text-white font-sans">Print Receipt</button>
+      </div>
+
+      <!-- Customer lookup -->
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h2 class="font-semibold mb-2">Customer Lookup</h2>
+        <div class="flex gap-2">
+          <input id="customer-search" placeholder="Search by phone number" class="flex-1 border rounded-lg px-3 py-2" />
+          <button id="customer-search-btn" class="px-4 py-2 rounded-lg bg-slate-900 text-white">Search</button>
+        </div>
+        <div id="customer-results" class="mt-2 space-y-1 text-sm"></div>
+      </div>
+
+      <div id="customer-detail" class="hidden bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="font-semibold" id="cd-name"></p>
+            <p class="text-sm text-slate-500" id="cd-phone"></p>
+          </div>
+          <button id="cd-close" class="text-slate-400 text-sm">✕</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-sm text-center">
+          <div class="bg-slate-50 rounded-lg p-2"><span class="block text-slate-500">Status</span><span id="cd-status" class="font-semibold"></span></div>
+          <div class="bg-slate-50 rounded-lg p-2"><span class="block text-slate-500">Loyalty pts</span><span id="cd-loyalty" class="font-semibold"></span></div>
+          <div class="bg-slate-50 rounded-lg p-2"><span class="block text-slate-500">Devices</span><span id="cd-devices" class="font-semibold"></span></div>
+        </div>
+        <div class="flex gap-2 text-sm">
+          <button id="cd-toggle-status" class="flex-1 py-2 rounded-lg bg-white border"></button>
+          <button id="cd-loyalty-plus" class="px-3 py-2 rounded-lg bg-white border">+1 pt</button>
+          <button id="cd-loyalty-minus" class="px-3 py-2 rounded-lg bg-white border">−1 pt</button>
+        </div>
+        <div>
+          <label class="text-sm font-medium">Extend Access</label>
+          <div class="flex gap-2 mt-1">
+            <select id="cd-extend-package" class="flex-1 border rounded-lg px-3 py-2 text-sm"></select>
+            <button id="cd-extend-btn" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium">Credit Voucher</button>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Credits a voucher to their account — they redeem it from their device, or read them the code.</p>
+        </div>
+        <div>
+          <p class="text-sm font-medium mb-1">Voucher history</p>
+          <div id="cd-history" class="space-y-1 text-sm"></div>
+        </div>
       </div>
 
       <div class="bg-white rounded-xl p-4 shadow-sm">

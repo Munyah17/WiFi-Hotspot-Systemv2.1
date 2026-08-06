@@ -37,6 +37,9 @@ function loadAll() {
   loadRouterStatus();
   loadPackages();
   loadStaff();
+  loadInventory();
+  loadSales();
+  loadAuditLog();
 }
 
 async function loadRevenue() {
@@ -83,11 +86,44 @@ async function loadPackages() {
     .join('');
 }
 
+// --- Staff ---
+
 async function loadStaff() {
   const staff = await api('/api/admin/staff');
   document.getElementById('staff-table').innerHTML = staff
-    .map((s) => `<tr class="border-t"><td class="py-1">${s.full_name || '-'}</td><td>${s.phone_number}</td><td>${s.role}</td><td>${s.status}</td></tr>`)
+    .map(
+      (s) => `
+      <tr class="border-t">
+        <td class="py-1">${s.full_name || '-'}</td><td>${s.phone_number}</td><td>${s.role}</td><td>${s.status}</td>
+        <td class="text-right space-x-2">
+          <button data-id="${s.id}" data-name="${s.full_name || ''}" data-role="${s.role}" class="staff-edit-btn text-xs text-slate-500">Edit</button>
+          <button data-id="${s.id}" data-status="${s.status === 'active' ? 'suspended' : 'active'}" class="staff-status-btn text-xs ${s.status === 'active' ? 'text-red-600' : 'text-emerald-600'}">
+            ${s.status === 'active' ? 'Suspend' : 'Activate'}
+          </button>
+        </td>
+      </tr>`
+    )
     .join('');
+
+  document.querySelectorAll('.staff-status-btn').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      await api(`/api/admin/staff/${btn.dataset.id}/status`, { method: 'PUT', body: JSON.stringify({ status: btn.dataset.status }) });
+      loadStaff();
+    })
+  );
+  document.querySelectorAll('.staff-edit-btn').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      const full_name = prompt('Full name:', btn.dataset.name) ?? btn.dataset.name;
+      const role = prompt('Role (admin/cashier):', btn.dataset.role) ?? btn.dataset.role;
+      if (!['admin', 'cashier'].includes(role)) return alert('Role must be admin or cashier');
+      try {
+        await api(`/api/admin/staff/${btn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ full_name, role }) });
+        loadStaff();
+      } catch (err) {
+        alert(err.message);
+      }
+    })
+  );
 }
 
 document.getElementById('staff-add').addEventListener('click', async () => {
@@ -106,5 +142,90 @@ document.getElementById('staff-add').addEventListener('click', async () => {
     alert(err.message);
   }
 });
+
+// --- Inventory ---
+
+async function loadInventory() {
+  const items = await api('/api/admin/inventory');
+  document.getElementById('inventory-table').innerHTML = items
+    .map(
+      (i) => `
+      <tr class="border-t">
+        <td class="py-1">${i.item_name}</td><td>$${i.price.toFixed(2)}</td><td>${i.stock_quantity}</td>
+        <td class="text-right"><button data-id="${i.id}" class="inv-sell-btn text-xs text-slate-900 border rounded px-2 py-0.5">Sell 1</button></td>
+      </tr>`
+    )
+    .join('');
+  document.querySelectorAll('.inv-sell-btn').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      try {
+        await api(`/api/admin/inventory/${btn.dataset.id}/sell`, { method: 'POST' });
+        loadInventory();
+        loadRevenue();
+        loadSales();
+      } catch (err) {
+        alert(err.message);
+      }
+    })
+  );
+}
+
+document.getElementById('inv-add').addEventListener('click', async () => {
+  try {
+    await api('/api/admin/inventory', {
+      method: 'POST',
+      body: JSON.stringify({
+        item_name: document.getElementById('inv-name').value.trim(),
+        price: Number(document.getElementById('inv-price').value) || 0,
+        stock_quantity: Number(document.getElementById('inv-stock').value) || 0,
+      }),
+    });
+    document.getElementById('inv-name').value = '';
+    document.getElementById('inv-price').value = '';
+    document.getElementById('inv-stock').value = '';
+    loadInventory();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// --- Sales / reports ---
+
+async function loadSales() {
+  const range = document.getElementById('sales-range').value;
+  const { sales, total } = await api(`/api/admin/sales?range=${range}`);
+  document.getElementById('sales-total').textContent = `$${total.toFixed(2)} (${sales.length} transactions)`;
+  document.getElementById('sales-table').innerHTML = sales
+    .map(
+      (s) => `
+      <tr class="border-t">
+        <td class="py-1">${new Date(s.timestamp + 'Z').toLocaleString()}</td>
+        <td>${s.transaction_type}</td>
+        <td>${s.payment_method}</td>
+        <td>$${s.amount.toFixed(2)}</td>
+        <td>${s.voucher_code || '-'}</td>
+        <td>${s.cashier_phone || s.customer_phone || '-'}</td>
+      </tr>`
+    )
+    .join('');
+}
+document.getElementById('sales-range').addEventListener('change', loadSales);
+
+// --- Audit log ---
+
+async function loadAuditLog() {
+  const rows = await api('/api/admin/audit-logs');
+  document.getElementById('audit-table').innerHTML = rows
+    .map(
+      (r) => `
+      <tr class="border-t">
+        <td class="py-1">${new Date(r.created_at + 'Z').toLocaleString()}</td>
+        <td>${r.actor_name || r.actor_phone || 'system'}</td>
+        <td>${r.action}</td>
+        <td>${r.target_type ? `${r.target_type} #${r.target_id}` : '-'}</td>
+      </tr>`
+    )
+    .join('');
+}
 
 checkSession();

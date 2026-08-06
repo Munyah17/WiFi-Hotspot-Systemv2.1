@@ -59,15 +59,38 @@ CREATE TABLE IF NOT EXISTS sessions_log (
   ended_at TEXT
 );
 
+-- A cashier's till session: opening float, running cash sales, closing count/variance.
+CREATE TABLE IF NOT EXISTS shifts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cashier_id INTEGER NOT NULL REFERENCES users(id),
+  opening_float REAL NOT NULL DEFAULT 0,
+  closing_counted REAL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  opened_at TEXT NOT NULL DEFAULT (datetime('now')),
+  closed_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS sales (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   transaction_type TEXT NOT NULL CHECK (transaction_type IN ('voucher', 'gadget')),
   payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'ecocash', 'paynow', 'stripe')),
   amount REAL NOT NULL,
   cashier_id INTEGER REFERENCES users(id),
+  shift_id INTEGER REFERENCES shifts(id),
   voucher_id INTEGER REFERENCES vouchers(id),
   user_id INTEGER REFERENCES users(id),
   timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Lightweight trail of notable actions for the admin audit log.
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_user_id INTEGER REFERENCES users(id),
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  details TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS inventory (

@@ -141,11 +141,24 @@ src/
 public/                    portal, cashier, and admin front-ends (Tailwind CDN + vanilla JS)
 ```
 
-## Not built yet (deliberately out of scope for v1)
+## Business management layer
+
+Beyond the voucher/payment core: cashier shift open/close with cash reconciliation
+(`/cashier`), customer lookup with account suspend/activate, "extend access" (credit a
+voucher to an account), loyalty points (1 per completed sale, manually adjustable), an
+admin audit log of staff/admin actions, a sales/reports view with date-range filtering, and
+a basic shop/inventory module with walk-in accessory sales. Staff edit is name/role only —
+no hard delete, since past vouchers/sales stay attributed to the staff member who created
+them; suspend a staff account instead.
+
+## Not built yet (deliberately out of scope for now)
 
 - Pre-arrival remote top-up auto-activation for bonded devices (buy from home, connect
   later and get in immediately) — the current flow activates against whichever device is
   making the request at payment time.
-- AI insights, weather-sensor integration, bandwidth-abuse detection, blind-spot mapping.
+- Network health/smart-business layer: bandwidth/speed/latency monitoring, per-user data
+  consumption, FUP/bandwidth rate-limiting, abuse/tethering detection, router uptime
+  history, signal/blind-spot mapping across range extenders.
+- AI insights, weather-sensor integration.
 - ESC-POS Bluetooth thermal printer output (the cashier receipt view is print-friendly via
   the browser's print dialog for now).

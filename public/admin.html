@@ -57,7 +57,7 @@
 
       <div class="bg-white rounded-xl p-4 shadow-sm">
         <h2 class="font-semibold mb-2">Staff</h2>
-        <div class="flex gap-2 mb-3 text-sm">
+        <div class="flex gap-2 mb-3 text-sm flex-wrap">
           <input id="staff-phone" placeholder="Phone" class="border rounded-lg px-2 py-1" />
           <input id="staff-name" placeholder="Name" class="border rounded-lg px-2 py-1" />
           <input id="staff-password" placeholder="Password" class="border rounded-lg px-2 py-1" />
@@ -68,8 +68,49 @@
           <button id="staff-add" class="px-3 py-1 rounded-lg bg-slate-900 text-white">Add</button>
         </div>
         <table class="w-full text-sm">
-          <thead class="text-left text-slate-500"><tr><th class="py-1">Name</th><th>Phone</th><th>Role</th><th>Status</th></tr></thead>
+          <thead class="text-left text-slate-500"><tr><th class="py-1">Name</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead>
           <tbody id="staff-table"></tbody>
+        </table>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h2 class="font-semibold mb-2">Shop / Inventory</h2>
+        <div class="flex gap-2 mb-3 text-sm flex-wrap">
+          <input id="inv-name" placeholder="Item name" class="border rounded-lg px-2 py-1" />
+          <input id="inv-price" type="number" step="0.01" placeholder="Price" class="border rounded-lg px-2 py-1 w-24" />
+          <input id="inv-stock" type="number" placeholder="Stock" class="border rounded-lg px-2 py-1 w-20" />
+          <button id="inv-add" class="px-3 py-1 rounded-lg bg-slate-900 text-white">Add Item</button>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500"><tr><th class="py-1">Item</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+          <tbody id="inventory-table"></tbody>
+        </table>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm overflow-x-auto">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="font-semibold">Sales / Reports</h2>
+          <select id="sales-range" class="border rounded-lg px-2 py-1 text-sm">
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+        <p class="text-sm text-slate-500 mb-2">Total: <span id="sales-total" class="font-semibold text-slate-900"></span></p>
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500">
+            <tr><th class="py-1">Time</th><th>Type</th><th>Method</th><th>Amount</th><th>Voucher</th><th>By</th></tr>
+          </thead>
+          <tbody id="sales-table"></tbody>
+        </table>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm overflow-x-auto">
+        <h2 class="font-semibold mb-2">Audit Log</h2>
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500"><tr><th class="py-1">Time</th><th>Actor</th><th>Action</th><th>Target</th></tr></thead>
+          <tbody id="audit-table"></tbody>
         </table>
       </div>
     </div>

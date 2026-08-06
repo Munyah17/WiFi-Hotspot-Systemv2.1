@@ -3,6 +3,7 @@ const db = require('../services/db');
 const vouchers = require('../services/vouchers');
 const paynow = require('../services/payments/paynow');
 const stripe = require('../services/payments/stripe');
+const loyalty = require('../services/loyalty');
 const config = require('../config');
 
 const router = express.Router();
@@ -98,6 +99,7 @@ router.get(
     db.prepare(
       `INSERT INTO sales (transaction_type, payment_method, amount, voucher_id, user_id) VALUES ('voucher', 'ecocash', ?, ?, ?)`
     ).run(voucher.price, voucher.id, paymentRequest.user_id);
+    loyalty.awardForSale(paymentRequest.user_id);
 
     res.json({ status: 'paid', voucher: activation.voucher });
   })
@@ -164,6 +166,7 @@ router.get(
     db.prepare(
       `INSERT INTO sales (transaction_type, payment_method, amount, voucher_id, user_id) VALUES ('voucher', 'stripe', ?, ?, ?)`
     ).run(voucher.price, voucher.id, paymentRequest.user_id);
+    loyalty.awardForSale(paymentRequest.user_id);
 
     res.redirect(`/?voucher_activated=1`);
   })
