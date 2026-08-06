@@ -1,0 +1,124 @@
+# WiFi Cafe — Hotspot Business Management System
+
+In-house app for a single Starlink + MikroTik WiFi hotspot cafe. MikroTik enforces the
+captive portal and internet access; this app is the business layer on top of it —
+vouchers, accounts, payments, staff, and live network visibility.
+
+Runs entirely on one device on the same LAN as the router (tablet via Termux, or a PC).
+No cloud dependency required for the core system to work.
+
+## Why it has to run locally
+
+Customers on the open WiFi have **no internet access at all** until they pay — MikroTik's
+hotspot puts them in a "walled garden" that can only reach whitelisted destinations. That
+means the voucher/payment portal itself must be served from a device on the LAN, not a
+cloud host. See the walled-garden section below for how digital payment still works from
+inside that restricted state.
+
+## Setup
+
+```
+npm install
+cp .env.example .env   # then fill in ROUTER_PASSWORD, ADMIN_PASSWORD, payment keys, etc.
+npm start
+```
+
+On first run this creates `data/hotspot.db` (SQLite), seeds the default voucher packages,
+and creates the super admin account from `ADMIN_PHONE` / `ADMIN_PASSWORD` in `.env`.
+
+- Customer portal: `http://<LOCAL_APP_HOST>:<PORT>/`
+- Cashier: `http://<LOCAL_APP_HOST>:<PORT>/cashier`
+- Admin: `http://<LOCAL_APP_HOST>:<PORT>/admin`
+
+### Running on an Android tablet (Termux)
+
+```
+pkg install nodejs-lts
+# better-sqlite3 needs build tools to compile its native binding:
+pkg install python make clang
+npm install
+npm start
+```
+
+Keep Termux running in the background: `termux-wake-lock`, and consider `termux-boot` so
+the app restarts automatically if the tablet reboots.
+
+## MikroTik configuration (RouterOS / WinBox)
+
+1. Set up the hotspot as normal (`IP > Hotspot > Hotspot Setup`) on the interface serving
+   your open WiFi network.
+2. Point the hotspot's login page at this app instead of the built-in one, or simply direct
+   customers to `http://<LOCAL_APP_HOST>:<PORT>/` — MikroTik redirects unauthenticated
+   HTTP traffic there automatically once it's in the walled garden.
+3. Add walled-garden entries (`IP > Hotspot > Walled Garden`) so unauthenticated devices can
+   reach:
+   - This app's IP/port (`<LOCAL_APP_HOST>:<PORT>`)
+   - Stripe's checkout domains, if you enable card payments: `checkout.stripe.com`,
+     `js.stripe.com`, `api.stripe.com` (Stripe may use a few more subdomains for fraud
+     checks — check your Stripe dashboard's checkout logs if a card payment gets stuck)
+   - EcoCash/Paynow do **not** need a walled-garden entry — see below.
+4. In the API settings (`IP > Services`), make sure the API service (port 8728) is enabled
+   and reachable from this app's device, and create/use the router user in `.env`.
+
+## How digital payment works inside the walled garden
+
+- **EcoCash / OneMoney (via Paynow)**: this app calls Paynow's API directly using its own
+  internet connection (the app's device has full internet; only guest WiFi clients are
+  walled off). Paynow then sends a USSD/mobile-money approval prompt to the customer's
+  phone over the **cellular network**, completely separate from WiFi. No walled-garden
+  entry needed. This is the default, "just works" payment path.
+- **Stripe (card)**: requires the customer's own browser to reach Stripe's hosted checkout,
+  so it needs the walled-garden whitelist above. Slightly more setup, offer as a secondary
+  option.
+- **Cash**: handled entirely at the cashier desk, no gateway involved.
+
+⚠️ The Paynow hash/field-order implementation in `src/services/payments/paynow.js` is
+built from their published API shape but has **not been tested against a live Paynow
+account** — verify it against Paynow's sandbox before taking real payments, and adjust the
+field order in `initiateMobilePayment` if their API rejects the hash.
+
+## Pause / Continue
+
+MikroTik's hotspot `limit-uptime` already tracks *accumulated connected time*, not
+wall-clock time — disconnecting doesn't burn the customer's remaining balance. Pause
+disables the hotspot login and kicks the active session; Continue re-enables it. No
+manual voucher re-entry needed.
+
+## Device binding
+
+When a voucher is redeemed or a payment clears, the app looks up the requester's MAC
+address via the router's ARP table (matching their LAN IP) and creates a MikroTik hotspot
+user locked to that MAC with `shared-users=1` — so one voucher code = one device.
+
+## Remote admin access
+
+There's no built-in cloud sync. For remote access to `/admin` while off-site, run
+[Tailscale](https://tailscale.com) (or Cloudflare Tunnel) on the device hosting this app —
+it gives you a private, authenticated link to the same local dashboard from your phone,
+without exposing the hotspot LAN or building a second copy of the data.
+
+## Project structure
+
+```
+src/
+  config.js              env/config, default packages
+  db/schema.sql           SQLite schema
+  services/
+    db.js                 SQLite connection + seeding
+    mikrotik.js            RouterOS API client (add/remove hotspot users, active sessions, ARP lookup)
+    vouchers.js            voucher issuing/activation, pause/continue
+    payments/paynow.js     EcoCash/OneMoney via Paynow
+    payments/stripe.js     card payments via Stripe Checkout
+  middleware/auth.js       role-based route guards
+  routes/                  portal (customer), cashier, admin, auth
+public/                    portal, cashier, and admin front-ends (Tailwind CDN + vanilla JS)
+```
+
+## Not built yet (deliberately out of scope for v1)
+
+- Pre-arrival remote top-up auto-activation for bonded devices (buy from home, connect
+  later and get in immediately) — the current flow activates against whichever device is
+  making the request at payment time.
+- AI insights, weather-sensor integration, bandwidth-abuse detection, blind-spot mapping.
+- ESC-POS Bluetooth thermal printer output (the cashier receipt view is print-friendly via
+  the browser's print dialog for now).

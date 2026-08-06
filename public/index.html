@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0f172a" />
+<title>WiFi Cafe — Get Connected</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Inputs stay at 16px so iOS Safari doesn't auto-zoom on focus. */
+  input { font-size: 16px; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-900">
+  <div class="max-w-md mx-auto px-4 py-6 sm:py-8">
+    <header class="text-center mb-6">
+      <h1 class="text-2xl font-bold">WiFi Cafe</h1>
+      <p class="text-slate-500 text-sm">Fast, reliable Starlink internet — buy time and get online.</p>
+    </header>
+
+    <div id="status-banner" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
+
+    <nav class="grid grid-cols-3 gap-2 mb-4 text-xs sm:text-sm font-medium">
+      <button data-tab="buy" class="tab-btn min-h-11 py-2.5 rounded-lg bg-slate-900 text-white transition active:scale-95">Buy Time</button>
+      <button data-tab="redeem" class="tab-btn min-h-11 py-2.5 rounded-lg bg-white border transition active:scale-95">Redeem Code</button>
+      <button data-tab="account" class="tab-btn min-h-11 py-2.5 rounded-lg bg-white border transition active:scale-95">Account</button>
+    </nav>
+
+    <!-- BUY -->
+    <section id="tab-buy" class="tab-panel space-y-3">
+      <div id="packages" class="space-y-2"></div>
+    </section>
+
+    <!-- REDEEM -->
+    <section id="tab-redeem" class="tab-panel hidden space-y-3">
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <label class="text-sm font-medium">Voucher Code</label>
+        <input id="redeem-code" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters"
+          class="mt-1 w-full border rounded-lg px-3 py-3 uppercase tracking-wide" />
+        <button id="redeem-btn" class="mt-3 w-full min-h-11 py-3 rounded-lg bg-slate-900 text-white font-medium transition active:scale-[0.98] disabled:opacity-50">
+          Connect Me
+        </button>
+      </div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="tab-account" class="tab-panel hidden space-y-3">
+      <div id="account-logged-out" class="bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <button id="show-login" class="min-h-10 py-2 rounded-lg bg-slate-900 text-white transition active:scale-95">Login</button>
+          <button id="show-register" class="min-h-10 py-2 rounded-lg bg-white border transition active:scale-95">Sign Up</button>
+        </div>
+        <input id="auth-phone" type="tel" inputmode="numeric" placeholder="Phone number" class="w-full border rounded-lg px-3 py-3" />
+        <input id="auth-name" placeholder="Full name (sign up only)" class="w-full border rounded-lg px-3 py-3" />
+        <input id="auth-password" type="password" placeholder="Password" class="w-full border rounded-lg px-3 py-3" />
+        <button id="auth-submit" class="w-full min-h-11 py-3 rounded-lg bg-emerald-600 text-white font-medium transition active:scale-[0.98] disabled:opacity-50">
+          Continue
+        </button>
+      </div>
+
+      <div id="account-logged-in" class="hidden bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <div>
+          <p class="font-semibold" id="account-name"></p>
+          <p class="text-sm text-slate-500" id="account-phone"></p>
+        </div>
+        <div id="account-sessions" class="space-y-2"></div>
+        <button id="logout-btn" class="w-full min-h-10 py-2 rounded-lg bg-white border text-sm">Log Out</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Checkout modal: bottom sheet on phones, centered dialog from sm: up -->
+  <div id="pay-modal" class="hidden fixed inset-0 z-50">
+    <div id="pay-backdrop" class="absolute inset-0 bg-black/50"></div>
+    <div class="relative h-full flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-xl">
+        <div class="flex justify-center pt-2 sm:hidden">
+          <div class="h-1.5 w-10 rounded-full bg-slate-300"></div>
+        </div>
+
+        <div class="flex items-center justify-between px-4 pt-3 pb-1">
+          <h2 class="font-semibold text-lg" id="pay-title">Pay for access</h2>
+          <button id="pay-close" aria-label="Close" class="h-9 w-9 flex items-center justify-center rounded-full text-slate-400 active:bg-slate-100">✕</button>
+        </div>
+
+        <div class="px-4 pb-4 space-y-3 overflow-y-auto">
+          <div class="grid grid-cols-3 gap-2 text-sm">
+            <button data-method="ecocash" class="pay-method-btn min-h-11 py-2 rounded-lg bg-slate-900 text-white transition active:scale-95">
+              <span class="block text-base leading-none mb-1">📱</span>EcoCash
+            </button>
+            <button data-method="onemoney" class="pay-method-btn min-h-11 py-2 rounded-lg bg-white border transition active:scale-95">
+              <span class="block text-base leading-none mb-1">📱</span>OneMoney
+            </button>
+            <button data-method="stripe" class="pay-method-btn min-h-11 py-2 rounded-lg bg-white border transition active:scale-95">
+              <span class="block text-base leading-none mb-1">💳</span>Card
+            </button>
+          </div>
+
+          <div id="pay-mobile-fields">
+            <label class="text-sm font-medium">Mobile money number</label>
+            <input id="pay-phone" type="tel" inputmode="numeric" placeholder="07XXXXXXXX" class="mt-1 w-full border rounded-lg px-3 py-3" />
+          </div>
+
+          <p id="pay-instructions" class="text-sm text-slate-500 min-h-5"></p>
+        </div>
+
+        <div class="px-4 pb-4 pt-2 border-t bg-white space-y-2" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+          <button id="pay-submit" class="w-full min-h-12 py-3 rounded-lg bg-emerald-600 text-white font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100">
+            Pay Now
+          </button>
+          <button id="pay-cancel" class="w-full py-1.5 text-sm text-slate-500">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden form used to log the device into the MikroTik hotspot once a voucher is active -->
+  <form id="mikrotik-login-form" method="post" class="hidden" target="mikrotik-login-frame">
+    <input type="hidden" name="username" id="mikrotik-username" />
+    <input type="hidden" name="password" id="mikrotik-password" />
+  </form>
+  <iframe name="mikrotik-login-frame" class="hidden"></iframe>
+
+  <script src="/js/portal.js"></script>
+</body>
+</html>

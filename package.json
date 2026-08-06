@@ -1,0 +1,22 @@
+{
+  "name": "hotspot-cafe",
+  "version": "0.1.0",
+  "description": "In-house business management system for a Starlink + MikroTik WiFi hotspot cafe",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "node-routeros": "^1.6.9"
+  }
+}
