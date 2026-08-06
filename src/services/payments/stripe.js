@@ -15,7 +15,14 @@ function authHeader() {
   return { Authorization: `Bearer ${config.stripe.secretKey}` };
 }
 
+// Testing only (MOCK_MODE=true) — skips Stripe entirely and jumps straight to
+// the success URL with a fake session id that checkSessionPaid recognizes.
 async function createCheckoutSession({ reference, amountUsd, packageName, successUrl, cancelUrl }) {
+  if (config.mockMode) {
+    const sessionId = `mock_${reference}`;
+    return { checkoutUrl: successUrl.replace('{CHECKOUT_SESSION_ID}', sessionId), sessionId };
+  }
+
   const body = new URLSearchParams({
     mode: 'payment',
     'payment_method_types[0]': 'card',
@@ -39,6 +46,8 @@ async function createCheckoutSession({ reference, amountUsd, packageName, succes
 }
 
 async function checkSessionPaid(sessionId) {
+  if (sessionId.startsWith('mock_')) return true;
+
   const res = await fetch(`${API_BASE}/checkout/sessions/${sessionId}`, { headers: authHeader() });
   const session = await res.json();
   if (!res.ok) throw new Error(session.error?.message || 'Could not retrieve Stripe session');

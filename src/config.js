@@ -9,6 +9,11 @@ module.exports = {
   port: Number(process.env.PORT || 3000),
   sessionSecret: required('SESSION_SECRET', 'dev-secret-change-me'),
   localAppHost: required('LOCAL_APP_HOST', '10.5.5.5'),
+  // Testing only — swaps the real RouterOS connection for an in-memory fake
+  // (src/services/mikrotikMock.js) and short-circuits Paynow/Stripe with
+  // simulated approvals, so the full app flow can be exercised without a
+  // real router or payment credentials.
+  mockMode: process.env.MOCK_MODE === 'true',
 
   router: {
     host: required('ROUTER_HOST', '10.5.5.1'),

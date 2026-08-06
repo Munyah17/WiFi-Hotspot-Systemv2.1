@@ -105,4 +105,6 @@ class MikrotikService {
   }
 }
 
-module.exports = new MikrotikService();
+// MOCK_MODE=true swaps in an in-memory fake so the full app can be tested
+// end-to-end without a real router on the network. See mikrotikMock.js.
+module.exports = config.mockMode ? require('./mikrotikMock') : new MikrotikService();

@@ -23,8 +23,18 @@ function parseFormEncoded(text) {
   return out;
 }
 
+// Testing only (MOCK_MODE=true) — simulates a customer approving the USSD
+// prompt ~5s after initiating, without calling Paynow at all.
+const mockPending = new Map(); // pollUrl -> initiated-at timestamp
+
 // method: 'ecocash' | 'onemoney'
 async function initiateMobilePayment({ reference, amount, phone, method, authEmail }) {
+  if (config.mockMode) {
+    const pollUrl = `mock://paynow/${reference}`;
+    mockPending.set(pollUrl, Date.now());
+    return { pollUrl, instructions: `[TEST MODE] Simulating ${method} approval for ${phone} — auto-confirms in ~5s.` };
+  }
+
   const { integrationId, integrationKey } = config.paynow;
   if (!integrationId || !integrationKey) {
     throw new Error('Paynow is not configured — set PAYNOW_INTEGRATION_ID and PAYNOW_INTEGRATION_KEY in .env');
@@ -66,6 +76,11 @@ async function initiateMobilePayment({ reference, amount, phone, method, authEma
 }
 
 async function checkStatus(pollUrl) {
+  if (pollUrl.startsWith('mock://')) {
+    const paid = Date.now() - (mockPending.get(pollUrl) || 0) > 5000;
+    return { paid, status: paid ? 'Paid' : 'Sent', raw: {} };
+  }
+
   const res = await fetch(pollUrl, { method: 'POST' });
   const parsed = parseFormEncoded(await res.text());
   return {

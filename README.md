@@ -15,6 +15,14 @@ means the voucher/payment portal itself must be served from a device on the LAN,
 cloud host. See the walled-garden section below for how digital payment still works from
 inside that restricted state.
 
+## Testing without hardware
+
+Set `MOCK_MODE=true` in `.env` to swap the real MikroTik connection and Paynow/Stripe calls
+for in-memory fakes (`src/services/mikrotikMock.js`, and short-circuits inside
+`paynow.js`/`stripe.js`) — lets you exercise the full flow (buy/redeem → device bound →
+shows up in admin → pause/continue/kick) without a router or payment credentials. Digital
+payments auto-"approve" ~5s after initiating. **Set it back to `false` before real use.**
+
 ## Setup
 
 ```
