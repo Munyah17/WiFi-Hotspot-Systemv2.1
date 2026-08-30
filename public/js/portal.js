@@ -59,18 +59,46 @@ async function loginToHotspot(mikrotikUsername) {
   form.submit();
 }
 
-function onVoucherActivated(voucher) {
+const PAYMENT_METHOD_LABELS = { ecocash: 'EcoCash', onemoney: 'OneMoney', stripe: 'Card', voucher_code: 'Voucher Code' };
+
+function showReceipt({ code, packageName, durationSeconds, price, method }) {
+  document.getElementById('receipt-code').textContent = code;
+  document.getElementById('receipt-package').textContent = `${packageName} — ${formatDuration(durationSeconds)}`;
+  document.getElementById('receipt-price').textContent = `$${Number(price).toFixed(2)} paid via ${PAYMENT_METHOD_LABELS[method] || method}`;
+  document.getElementById('receipt-time').textContent = new Date().toLocaleString();
+  document.getElementById('receipt-modal').classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+}
+
+function closeReceipt() {
+  document.getElementById('receipt-modal').classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+document.getElementById('receipt-close').addEventListener('click', closeReceipt);
+document.getElementById('receipt-print').addEventListener('click', () => window.print());
+
+// method: which payment path activated this voucher, for the receipt.
+function onVoucherActivated(voucher, method) {
   showBanner("You're connected! Enjoy your browsing.", 'success');
   loginToHotspot(voucher.mikrotik_username);
+  const pkg = cachedPackages.find((p) => p.id === voucher.package_id);
+  showReceipt({
+    code: voucher.code,
+    packageName: pkg?.name || 'WiFi Access',
+    durationSeconds: voucher.duration_seconds,
+    price: voucher.price,
+    method,
+  });
 }
 
 // --- Packages / Buy ---
 let selectedPackage = null;
+let cachedPackages = [];
 
 async function loadPackages() {
-  const packages = await api('/portal/packages');
+  cachedPackages = await api('/portal/packages');
   const container = document.getElementById('packages');
-  container.innerHTML = packages
+  container.innerHTML = cachedPackages
     .map(
       (p) => `
       <button data-id="${p.id}" class="pkg-btn w-full bg-white rounded-xl p-4 shadow-sm flex justify-between items-center text-left transition active:scale-[0.98] active:bg-slate-50">
@@ -83,7 +111,7 @@ async function loadPackages() {
     )
     .join('');
   container.querySelectorAll('.pkg-btn').forEach((btn) => {
-    btn.addEventListener('click', () => openPayModal(packages.find((p) => p.id === Number(btn.dataset.id))));
+    btn.addEventListener('click', () => openPayModal(cachedPackages.find((p) => p.id === Number(btn.dataset.id))));
   });
 }
 
@@ -170,7 +198,7 @@ async function pollPaynowStatus(paymentRequestId) {
       const result = await api(`/portal/pay/paynow/status/${paymentRequestId}`);
       if (result.status === 'paid') {
         closePayModal();
-        onVoucherActivated(result.voucher);
+        onVoucherActivated(result.voucher, selectedMethod);
       } else if (result.status === 'failed' || result.status === 'cancelled') {
         clearInterval(pollTimer);
         pollTimer = null;
@@ -191,7 +219,7 @@ redeemBtn.addEventListener('click', () =>
     const code = document.getElementById('redeem-code').value.trim().toUpperCase();
     try {
       const result = await api('/portal/vouchers/redeem', { method: 'POST', body: JSON.stringify({ code }) });
-      onVoucherActivated(result.voucher);
+      onVoucherActivated(result.voucher, 'voucher_code');
     } catch (err) {
       showBanner(err.message, 'error');
     }
@@ -276,5 +304,26 @@ async function loadAccount() {
   });
 }
 
+// Stripe redirects back to a plain page load (not an in-page JS call), so the
+// hotspot login form submit and the receipt both have to be triggered here
+// from the query params the server attached to the redirect.
+function handleVoucherActivatedRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (params.get('voucher_activated') === '1' && code) {
+    loginToHotspot(params.get('mikrotik_username'));
+    showBanner("You're connected! Enjoy your browsing.", 'success');
+    showReceipt({
+      code,
+      packageName: params.get('package') || 'WiFi Access',
+      durationSeconds: Number(params.get('duration')) || 0,
+      price: Number(params.get('price')) || 0,
+      method: params.get('method') || 'stripe',
+    });
+  }
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
 loadPackages();
 loadAccount();
+handleVoucherActivatedRedirect();

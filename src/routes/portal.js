@@ -138,6 +138,19 @@ router.post(
   })
 );
 
+function receiptRedirectUrl(voucher, pkg, method) {
+  const params = new URLSearchParams({
+    voucher_activated: '1',
+    code: voucher.code,
+    mikrotik_username: voucher.mikrotik_username || '',
+    package: pkg.name,
+    duration: String(voucher.duration_seconds),
+    price: String(voucher.price),
+    method,
+  });
+  return `/?${params.toString()}`;
+}
+
 router.get(
   '/payment-return',
   asyncRoute(async (req, res) => {
@@ -146,7 +159,9 @@ router.get(
     if (!paymentRequest) return res.status(404).send('Payment not found');
 
     if (paymentRequest.status === 'paid') {
-      return res.redirect(`/?voucher_activated=1`);
+      const existing = db.prepare('SELECT * FROM vouchers WHERE id = ?').get(paymentRequest.voucher_id);
+      const pkg = vouchers.getPackage(paymentRequest.package_id);
+      return res.redirect(receiptRedirectUrl(existing, pkg, 'stripe'));
     }
 
     const paid = await stripe.checkSessionPaid(sessionId);
@@ -157,7 +172,7 @@ router.get(
       issueReason: 'self_service',
       issuedToUserId: paymentRequest.user_id,
     });
-    await vouchers.activateVoucher({ code: voucher.code, requesterIp: requesterIp(req), userId: paymentRequest.user_id });
+    const activation = await vouchers.activateVoucher({ code: voucher.code, requesterIp: requesterIp(req), userId: paymentRequest.user_id });
 
     db.prepare("UPDATE payment_requests SET status = 'paid', voucher_id = ?, updated_at = datetime('now') WHERE id = ?").run(
       voucher.id,
@@ -168,7 +183,8 @@ router.get(
     ).run(voucher.price, voucher.id, paymentRequest.user_id);
     loyalty.awardForSale(paymentRequest.user_id);
 
-    res.redirect(`/?voucher_activated=1`);
+    const pkg = vouchers.getPackage(paymentRequest.package_id);
+    res.redirect(receiptRedirectUrl(activation.voucher, pkg, 'stripe'));
   })
 );
 

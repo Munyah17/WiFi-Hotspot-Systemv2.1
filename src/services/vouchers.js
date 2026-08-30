@@ -18,26 +18,52 @@ function getPackage(packageId) {
   return pkg;
 }
 
+const insertVoucherStmt = db.prepare(
+  `INSERT INTO vouchers (code, package_id, duration_seconds, price, issue_reason, created_by_user_id, issued_to_user_id)
+   VALUES (@code, @package_id, @duration_seconds, @price, @issue_reason, @created_by_user_id, @issued_to_user_id)`
+);
+
 // Creates an unused voucher row. Doesn't touch MikroTik yet — that happens at
 // activation time, once we know which device the customer is redeeming it on.
-function issueVoucher({ packageId, issueReason, createdByUserId = null, issuedToUserId = null }) {
+// Retries on a code collision — astronomically unlikely for one voucher, but
+// worth guarding once batches of hundreds are generated at a time.
+function issueVoucher({ packageId, issueReason, createdByUserId = null, issuedToUserId = null, pkg = null }) {
+  const resolvedPkg = pkg || getPackage(packageId);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const result = insertVoucherStmt.run({
+        code: generateCode(),
+        package_id: resolvedPkg.id,
+        duration_seconds: resolvedPkg.duration_seconds,
+        price: resolvedPkg.price,
+        issue_reason: issueReason,
+        created_by_user_id: createdByUserId,
+        issued_to_user_id: issuedToUserId,
+      });
+      return db.prepare('SELECT * FROM vouchers WHERE id = ?').get(result.lastInsertRowid);
+    } catch (err) {
+      if (attempt === 4 || !/UNIQUE constraint failed/.test(err.message)) throw err;
+    }
+  }
+}
+
+const MAX_BATCH_SIZE = 500;
+
+// 1-click bulk generation: one package, N unused vouchers, ready to print as
+// physical cards. Doesn't touch MikroTik and doesn't record a sale — these
+// are pre-printed stock, not a point of sale; each one is only "sold" (and
+// should be recorded as such) when it's actually handed over for payment.
+function issueVouchersBatch({ packageId, quantity, createdByUserId = null }) {
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1 || qty > MAX_BATCH_SIZE) {
+    throw new Error(`Quantity must be a whole number between 1 and ${MAX_BATCH_SIZE}`);
+  }
   const pkg = getPackage(packageId);
-  const code = generateCode();
-  const result = db
-    .prepare(
-      `INSERT INTO vouchers (code, package_id, duration_seconds, price, issue_reason, created_by_user_id, issued_to_user_id)
-       VALUES (@code, @package_id, @duration_seconds, @price, @issue_reason, @created_by_user_id, @issued_to_user_id)`
-    )
-    .run({
-      code,
-      package_id: pkg.id,
-      duration_seconds: pkg.duration_seconds,
-      price: pkg.price,
-      issue_reason: issueReason,
-      created_by_user_id: createdByUserId,
-      issued_to_user_id: issuedToUserId,
-    });
-  return db.prepare('SELECT * FROM vouchers WHERE id = ?').get(result.lastInsertRowid);
+  const batch = [];
+  for (let i = 0; i < qty; i++) {
+    batch.push(issueVoucher({ pkg, issueReason: 'batch', createdByUserId }));
+  }
+  return batch;
 }
 
 // Redeems a voucher for the device at `requesterIp`, binding it to that
@@ -136,6 +162,7 @@ module.exports = {
   generateCode,
   getPackage,
   issueVoucher,
+  issueVouchersBatch,
   activateVoucher,
   topUpUser,
   pauseSession,

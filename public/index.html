@@ -10,6 +10,11 @@
   /* Inputs stay at 16px so iOS Safari doesn't auto-zoom on focus. */
   input { font-size: 16px; }
   body { padding-bottom: env(safe-area-inset-bottom); }
+  @media print {
+    body * { visibility: hidden; }
+    #receipt-sheet, #receipt-sheet * { visibility: visible; }
+    #receipt-sheet { position: absolute; top: 0; left: 0; width: 100%; }
+  }
 </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-900">
@@ -110,6 +115,34 @@
             Pay Now
           </button>
           <button id="pay-cancel" class="w-full py-1.5 text-sm text-slate-500">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt, shown right after checkout — printable, with usage directions -->
+  <div id="receipt-modal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/50"></div>
+    <div class="relative h-full flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-xl">
+        <div class="px-4 pt-4 pb-2 text-center">
+          <div class="text-3xl mb-1">✅</div>
+          <h2 class="font-semibold text-lg">You're connected!</h2>
+        </div>
+        <div id="receipt-sheet" class="px-4 pb-2 overflow-y-auto font-mono text-sm text-center space-y-1">
+          <p class="font-bold text-lg tracking-wide" id="receipt-code"></p>
+          <p id="receipt-package"></p>
+          <p id="receipt-price"></p>
+          <p class="text-slate-400" id="receipt-time"></p>
+          <p class="text-left font-sans text-xs text-slate-500 mt-3 pt-3 border-t">
+            <strong>How to use:</strong> your device is already online — no need to do anything else.
+            If you get disconnected, just reconnect to the WiFi network; you won't need to re-enter this
+            code unless a staff member asks you to. Keep this as your proof of purchase.
+          </p>
+        </div>
+        <div class="px-4 pb-4 pt-2 space-y-2" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+          <button id="receipt-print" class="w-full min-h-11 py-3 rounded-lg bg-slate-900 text-white font-medium">Print Receipt</button>
+          <button id="receipt-close" class="w-full py-1.5 text-sm text-slate-500">Continue Browsing</button>
         </div>
       </div>
     </div>

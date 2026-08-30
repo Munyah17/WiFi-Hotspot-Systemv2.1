@@ -84,7 +84,56 @@ async function loadPackages() {
   document.getElementById('packages-table').innerHTML = packages
     .map((p) => `<tr class="border-t"><td class="py-1">${p.name}</td><td>${Math.round(p.duration_seconds / 3600)}h</td><td>$${p.price.toFixed(2)}</td></tr>`)
     .join('');
+  document.getElementById('batch-package').innerHTML = packages
+    .filter((p) => p.active)
+    .map((p) => `<option value="${p.id}">${p.name} — $${p.price.toFixed(2)}</option>`)
+    .join('');
 }
+
+// --- Bulk voucher generation ---
+
+document.getElementById('batch-generate').addEventListener('click', async () => {
+  const packageId = document.getElementById('batch-package').value;
+  const quantity = Number(document.getElementById('batch-quantity').value);
+  const btn = document.getElementById('batch-generate');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    const { vouchers, package: pkg } = await api('/api/admin/vouchers/batch', {
+      method: 'POST',
+      body: JSON.stringify({ packageId, quantity }),
+    });
+    document.getElementById('batch-result').textContent = `${vouchers.length} vouchers generated (${pkg.name}, $${pkg.price.toFixed(2)} each).`;
+    document.getElementById('batch-preview').innerHTML = vouchers
+      .slice(0, 12)
+      .map((v) => `<div class="border rounded px-2 py-1 bg-slate-50">${v.code}</div>`)
+      .join('') + (vouchers.length > 12 ? `<div class="text-slate-400 px-2 py-1">+${vouchers.length - 12} more…</div>` : '');
+    document.getElementById('batch-print').classList.remove('hidden');
+    preparePrintSheet(vouchers, pkg);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate';
+  }
+});
+
+function preparePrintSheet(vouchers, pkg) {
+  document.getElementById('print-batch-summary').textContent =
+    `${pkg.name} — ${Math.round(pkg.duration_seconds / 3600)}h access — $${pkg.price.toFixed(2)} — generated ${new Date().toLocaleString()}`;
+  document.getElementById('print-voucher-grid').innerHTML = vouchers
+    .map(
+      (v) => `
+      <div style="border:1px dashed #999;border-radius:6px;padding:8px;text-align:center;">
+        <div style="font-size:11px;color:#555;">${pkg.name} — ${Math.round(pkg.duration_seconds / 3600)}h</div>
+        <div style="font-family:monospace;font-weight:bold;font-size:14px;margin:4px 0;">${v.code}</div>
+        <div style="font-size:10px;color:#777;">$${pkg.price.toFixed(2)} — connect to WiFi, enter this code</div>
+      </div>`
+    )
+    .join('');
+}
+
+document.getElementById('batch-print').addEventListener('click', () => window.print());
 
 // --- Staff ---
 

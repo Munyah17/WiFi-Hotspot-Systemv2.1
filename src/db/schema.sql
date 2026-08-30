@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS vouchers (
   duration_seconds INTEGER NOT NULL,
   price REAL NOT NULL,
   status TEXT NOT NULL DEFAULT 'unused' CHECK (status IN ('unused', 'active', 'expired', 'cancelled')),
-  issue_reason TEXT NOT NULL DEFAULT 'self_service' CHECK (issue_reason IN ('self_service', 'cash', 'account_topup')),
+  issue_reason TEXT NOT NULL DEFAULT 'self_service' CHECK (issue_reason IN ('self_service', 'cash', 'account_topup', 'batch')),
   created_by_user_id INTEGER REFERENCES users(id),
   issued_to_user_id INTEGER REFERENCES users(id),
   used_by_mac TEXT,

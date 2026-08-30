@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const mikrotik = require('../services/mikrotik');
+const vouchers = require('../services/vouchers');
 const audit = require('../services/audit');
 const { requireRole } = require('../middleware/auth');
 
@@ -109,6 +110,23 @@ router.put('/packages/:id', (req, res) => {
   );
   audit.logAction(req.session.user.id, 'package_update', 'package', req.params.id, { name, price, active });
   res.json(db.prepare('SELECT * FROM packages WHERE id = ?').get(req.params.id));
+});
+
+// --- Bulk voucher generation (1-click batch, replaces creating each one by hand in WinBox) ---
+
+router.post('/vouchers/batch', (req, res) => {
+  try {
+    const batch = vouchers.issueVouchersBatch({
+      packageId: req.body.packageId,
+      quantity: req.body.quantity,
+      createdByUserId: req.session.user.id,
+    });
+    const pkg = db.prepare('SELECT * FROM packages WHERE id = ?').get(req.body.packageId);
+    audit.logAction(req.session.user.id, 'voucher_batch_create', 'package', req.body.packageId, { quantity: batch.length });
+    res.json({ vouchers: batch, package: pkg });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // --- Staff management ---
