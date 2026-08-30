@@ -175,11 +175,15 @@ async function adjustLoyalty(delta) {
 document.getElementById('cd-extend-btn').addEventListener('click', async () => {
   const packageId = document.getElementById('cd-extend-package').value;
   try {
-    const { voucher } = await api(`/api/cashier/customers/${currentCustomerId}/extend`, {
+    const { voucher, mode, mikrotikUsername } = await api(`/api/cashier/customers/${currentCustomerId}/extend`, {
       method: 'POST',
       body: JSON.stringify({ packageId }),
     });
-    alert(`Voucher credited: ${voucher.code}`);
+    if (mode === 'extended') {
+      alert(`Added time to their active session (${mikrotikUsername}) — no code needed, they're already connected.`);
+    } else {
+      alert(`No active session — voucher credited to their account: ${voucher.code}`);
+    }
     openCustomer(currentCustomerId);
     loadShift();
   } catch (err) {

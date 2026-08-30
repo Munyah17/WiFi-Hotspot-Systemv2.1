@@ -122,27 +122,27 @@ router.post('/customers/:id/status', (req, res) => {
   res.json({ ok: true });
 });
 
-// Credits a voucher directly to the customer's account — they redeem it from
-// their own device via the portal (or the cashier reads them the code).
-router.post('/customers/:id/extend', (req, res) => {
+// If the customer has a session running right now, this adds time straight
+// onto it via the router API. Otherwise it credits a voucher to their
+// account for them to redeem later via the portal.
+router.post('/customers/:id/extend', async (req, res) => {
   try {
     const customer = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'customer'").get(req.params.id);
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
     const { packageId, paymentMethod = 'cash' } = req.body;
-    const voucher = vouchers.issueVoucher({
+    const { voucher, mode, mikrotikUsername } = await vouchers.topUpUser({
+      userId: customer.id,
       packageId,
-      issueReason: 'account_topup',
       createdByUserId: req.session.user.id,
-      issuedToUserId: customer.id,
     });
     const shift = getOpenShift(req.session.user.id);
     db.prepare(
       `INSERT INTO sales (transaction_type, payment_method, amount, cashier_id, shift_id, voucher_id, user_id) VALUES ('voucher', ?, ?, ?, ?, ?, ?)`
     ).run(paymentMethod, voucher.price, req.session.user.id, shift?.id || null, voucher.id, customer.id);
     loyalty.awardForSale(customer.id);
-    audit.logAction(req.session.user.id, 'extend_access', 'user', customer.id, { code: voucher.code, packageId });
-    res.json({ voucher });
+    audit.logAction(req.session.user.id, 'extend_access', 'user', customer.id, { code: voucher.code, packageId, mode });
+    res.json({ voucher, mode, mikrotikUsername });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

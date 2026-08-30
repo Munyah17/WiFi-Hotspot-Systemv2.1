@@ -87,6 +87,39 @@ async function pauseSession(mikrotikUsername) {
   return session;
 }
 
+function findActiveSessionForUser(userId) {
+  return db
+    .prepare("SELECT * FROM sessions_log WHERE user_id = ? AND status IN ('active', 'paused') ORDER BY started_at DESC LIMIT 1")
+    .get(userId);
+}
+
+// If the customer already has a session running (or paused), this adds the
+// package's time directly onto that same MikroTik user's budget — a real
+// top-up, not a second parallel voucher. Only falls back to crediting a
+// fresh unused voucher (today's redeem-later flow) if they have nothing active.
+async function topUpUser({ userId, packageId, issueReason = 'account_topup', createdByUserId = null }) {
+  const pkg = getPackage(packageId);
+  const session = findActiveSessionForUser(userId);
+
+  const voucher = issueVoucher({ packageId, issueReason, createdByUserId, issuedToUserId: userId });
+
+  if (!session) {
+    return { voucher, mode: 'credited' };
+  }
+
+  await mikrotik.extendHotspotUser(session.mikrotik_username, pkg.duration_seconds);
+  db.prepare('UPDATE sessions_log SET duration_seconds = duration_seconds + ? WHERE id = ?').run(pkg.duration_seconds, session.id);
+  db.prepare(
+    `UPDATE vouchers SET status = 'active', used_by_mac = ?, mikrotik_username = ?, activated_at = datetime('now') WHERE id = ?`
+  ).run(session.device_mac, session.mikrotik_username, voucher.id);
+
+  return {
+    voucher: db.prepare('SELECT * FROM vouchers WHERE id = ?').get(voucher.id),
+    mode: 'extended',
+    mikrotikUsername: session.mikrotik_username,
+  };
+}
+
 async function continueSession(mikrotikUsername) {
   const session = db
     .prepare("SELECT * FROM sessions_log WHERE mikrotik_username = ? AND status = 'paused'")
@@ -104,6 +137,7 @@ module.exports = {
   getPackage,
   issueVoucher,
   activateVoucher,
+  topUpUser,
   pauseSession,
   continueSession,
 };

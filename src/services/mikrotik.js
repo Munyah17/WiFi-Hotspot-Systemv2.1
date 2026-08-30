@@ -1,6 +1,27 @@
 const { RouterOSAPI } = require('node-routeros');
 const config = require('../config');
 
+// RouterOS prints durations like "12:00:00", "1d02:03:04", or "3w1d02:03:04" —
+// not raw seconds — so extending a user's time budget means parsing whatever
+// it hands back, adding to it, and writing the sum back in seconds.
+function parseRouterOSDuration(value) {
+  if (!value) return 0;
+  const str = String(value);
+  let seconds = 0;
+  const weeks = str.match(/(\d+)w/);
+  if (weeks) seconds += Number(weeks[1]) * 7 * 86400;
+  const days = str.match(/(\d+)d/);
+  if (days) seconds += Number(days[1]) * 86400;
+  const hms = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+  if (hms) {
+    seconds += Number(hms[1]) * 3600 + Number(hms[2]) * 60 + Number(hms[3]);
+  } else {
+    const secOnly = str.match(/^(\d+)s$/);
+    if (secOnly) seconds += Number(secOnly[1]);
+  }
+  return seconds;
+}
+
 // Single shared connection to the router, reconnected on demand if it drops
 // (cable pulled, router rebooted, etc). Every method below routes through
 // `run()`, which retries once after a fresh connect if the first attempt fails.
@@ -75,6 +96,19 @@ class MikrotikService {
     const user = await this.findHotspotUserByName(username);
     if (!user) throw new Error(`Hotspot user not found: ${username}`);
     return this.run('/ip/hotspot/user/set', [`=.id=${user['.id']}`, `=disabled=${disabled ? 'yes' : 'no'}`]);
+  }
+
+  // Adds to a user's *existing* time budget in place — this is the "top up 2
+  // hours" operation: RouterOS keeps counting cumulative connected time
+  // against limit-uptime, so increasing that value is all that's needed;
+  // there's no separate "remaining time" field to write.
+  async extendHotspotUser(username, additionalSeconds) {
+    const user = await this.findHotspotUserByName(username);
+    if (!user) throw new Error(`Hotspot user not found: ${username}`);
+    const currentSeconds = parseRouterOSDuration(user['limit-uptime']);
+    const newSeconds = currentSeconds + additionalSeconds;
+    await this.run('/ip/hotspot/user/set', [`=.id=${user['.id']}`, `=limit-uptime=${newSeconds}s`]);
+    return newSeconds;
   }
 
   async removeHotspotUser(username) {

@@ -46,6 +46,14 @@ module.exports = {
     console.log(`[mock-mikrotik] hotspot user ${username} disabled=${disabled}`);
   },
 
+  async extendHotspotUser(username, additionalSeconds) {
+    const u = hotspotUsers.get(username);
+    if (!u) throw new Error(`Hotspot user not found: ${username}`);
+    u.limitUptimeSeconds += additionalSeconds;
+    console.log(`[mock-mikrotik] extended ${username} by ${additionalSeconds}s -> ${u.limitUptimeSeconds}s total`);
+    return u.limitUptimeSeconds;
+  },
+
   async removeHotspotUser(username) {
     const u = hotspotUsers.get(username);
     if (u) activeSessions.delete(u.macAddress);
