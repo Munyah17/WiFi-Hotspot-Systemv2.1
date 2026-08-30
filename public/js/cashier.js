@@ -106,6 +106,21 @@ async function sellVoucher(packageId) {
   }
 }
 
+document.getElementById('preprinted-sell-btn').addEventListener('click', async () => {
+  const code = document.getElementById('preprinted-code').value.trim().toUpperCase();
+  const resultEl = document.getElementById('preprinted-result');
+  try {
+    const { voucher } = await api(`/api/cashier/vouchers/${encodeURIComponent(code)}/sell`, { method: 'POST', body: JSON.stringify({}) });
+    resultEl.className = 'text-sm mt-2 text-emerald-600';
+    resultEl.textContent = `Sold: ${voucher.code} — $${voucher.price.toFixed(2)}`;
+    document.getElementById('preprinted-code').value = '';
+    loadShift();
+  } catch (err) {
+    resultEl.className = 'text-sm mt-2 text-red-600';
+    resultEl.textContent = err.message;
+  }
+});
+
 async function loadRecent() {
   const recent = await api('/api/cashier/vouchers/recent');
   document.getElementById('recent').innerHTML = recent

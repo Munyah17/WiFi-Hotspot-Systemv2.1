@@ -49,6 +49,16 @@
         <div id="packages" class="space-y-2"></div>
       </div>
 
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h2 class="font-semibold mb-1">Sell a Pre-Printed Voucher</h2>
+        <p class="text-sm text-slate-500 mb-2">For vouchers from an admin-generated batch — records the sale when it's actually handed over.</p>
+        <div class="flex gap-2">
+          <input id="preprinted-code" placeholder="XXXX-XXXX-XXXX" class="flex-1 border rounded-lg px-3 py-2 uppercase" />
+          <button id="preprinted-sell-btn" class="px-4 py-2 rounded-lg bg-slate-900 text-white font-medium">Mark Sold</button>
+        </div>
+        <p id="preprinted-result" class="text-sm mt-2"></p>
+      </div>
+
       <div id="receipt" class="hidden bg-white rounded-xl p-4 shadow-sm text-center space-y-1 font-mono text-sm">
         <p class="font-bold text-lg" id="receipt-code"></p>
         <p id="receipt-package"></p>

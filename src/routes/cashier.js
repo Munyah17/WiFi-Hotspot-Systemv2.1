@@ -72,6 +72,26 @@ router.post('/vouchers', (req, res) => {
   }
 });
 
+// Records the sale of a pre-printed (batch-generated) voucher, at the moment
+// it's actually handed over for payment — same sales-recording shape as
+// every other transaction, just against an existing voucher instead of a
+// freshly-created one.
+router.post('/vouchers/:code/sell', (req, res) => {
+  const voucher = db.prepare('SELECT * FROM vouchers WHERE code = ?').get(req.params.code.trim().toUpperCase());
+  if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
+
+  const alreadySold = db.prepare('SELECT id FROM sales WHERE voucher_id = ?').get(voucher.id);
+  if (alreadySold) return res.status(409).json({ error: 'This voucher has already been sold' });
+
+  const paymentMethod = req.body.paymentMethod || 'cash';
+  const shift = getOpenShift(req.session.user.id);
+  db.prepare(
+    `INSERT INTO sales (transaction_type, payment_method, amount, cashier_id, shift_id, voucher_id) VALUES ('voucher', ?, ?, ?, ?, ?)`
+  ).run(paymentMethod, voucher.price, req.session.user.id, shift?.id || null, voucher.id);
+  audit.logAction(req.session.user.id, 'voucher_sell', 'voucher', voucher.id, { code: voucher.code, paymentMethod });
+  res.json({ voucher });
+});
+
 router.get('/vouchers/recent', (req, res) => {
   const recent = db
     .prepare(
