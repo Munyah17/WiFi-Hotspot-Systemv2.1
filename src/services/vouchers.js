@@ -66,8 +66,17 @@ function issueVouchersBatch({ packageId, quantity, createdByUserId = null }) {
   return batch;
 }
 
-// Redeems a voucher for the device at `requesterIp`, binding it to that
-// device's MAC on the router and starting the session clock.
+function findActiveSessionForMac(macAddress) {
+  return db
+    .prepare("SELECT * FROM sessions_log WHERE device_mac = ? AND status IN ('active', 'paused') ORDER BY started_at DESC LIMIT 1")
+    .get(macAddress);
+}
+
+// Redeems a voucher for the device at `requesterIp`. If that device already
+// has a session running (or paused) — the common "buy more while browsing"
+// case for self-service top-ups — the voucher's time is added straight onto
+// it via the router API, same as a cashier's in-person extend. Otherwise this
+// binds a fresh MikroTik login to the device's MAC and starts the clock.
 async function activateVoucher({ code, requesterIp, userId = null }) {
   const voucher = db.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
   if (!voucher) throw new Error('Voucher code not found');
@@ -75,6 +84,27 @@ async function activateVoucher({ code, requesterIp, userId = null }) {
 
   const macAddress = await mikrotik.getMacForIp(requesterIp);
   if (!macAddress) throw new Error('Could not identify your device on the network — try reconnecting to WiFi');
+
+  const existingSession = findActiveSessionForMac(macAddress);
+
+  if (existingSession) {
+    await mikrotik.extendHotspotUser(existingSession.mikrotik_username, voucher.duration_seconds);
+    db.prepare('UPDATE sessions_log SET duration_seconds = duration_seconds + ? WHERE id = ?').run(
+      voucher.duration_seconds,
+      existingSession.id
+    );
+    db.prepare(
+      `UPDATE vouchers SET status = 'active', used_by_mac = ?, mikrotik_username = ?, activated_at = datetime('now'), issued_to_user_id = COALESCE(issued_to_user_id, ?)
+       WHERE id = ?`
+    ).run(macAddress, existingSession.mikrotik_username, userId, voucher.id);
+
+    return {
+      voucher: db.prepare('SELECT * FROM vouchers WHERE id = ?').get(voucher.id),
+      macAddress,
+      mikrotikUsername: existingSession.mikrotik_username,
+      mode: 'extended',
+    };
+  }
 
   const mikrotikUsername = `v-${voucher.code}`.toLowerCase();
   await mikrotik.addHotspotUser({
@@ -95,7 +125,12 @@ async function activateVoucher({ code, requesterIp, userId = null }) {
      VALUES (?, ?, ?, ?, ?)`
   ).run(voucher.id, userId, macAddress, mikrotikUsername, voucher.duration_seconds);
 
-  return { voucher: db.prepare('SELECT * FROM vouchers WHERE id = ?').get(voucher.id), macAddress, mikrotikUsername };
+  return {
+    voucher: db.prepare('SELECT * FROM vouchers WHERE id = ?').get(voucher.id),
+    macAddress,
+    mikrotikUsername,
+    mode: 'activated',
+  };
 }
 
 // Disables the hotspot login and disconnects the active session, but the
