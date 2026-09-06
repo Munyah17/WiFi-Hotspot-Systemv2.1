@@ -78,8 +78,13 @@ document.getElementById('receipt-close').addEventListener('click', closeReceipt)
 document.getElementById('receipt-print').addEventListener('click', () => window.print());
 
 // method: which payment path activated this voucher, for the receipt.
-function onVoucherActivated(voucher, method) {
-  showBanner("You're connected! Enjoy your browsing.", 'success');
+// mode: 'extended' if this topped up a session already running on this
+// device, 'activated' if it started a fresh one.
+function onVoucherActivated(voucher, method, mode) {
+  showBanner(
+    mode === 'extended' ? 'Time added — your connection keeps going.' : "You're connected! Enjoy your browsing.",
+    'success'
+  );
   loginToHotspot(voucher.mikrotik_username);
   const pkg = cachedPackages.find((p) => p.id === voucher.package_id);
   showReceipt({
@@ -198,7 +203,7 @@ async function pollPaynowStatus(paymentRequestId) {
       const result = await api(`/portal/pay/paynow/status/${paymentRequestId}`);
       if (result.status === 'paid') {
         closePayModal();
-        onVoucherActivated(result.voucher, selectedMethod);
+        onVoucherActivated(result.voucher, selectedMethod, result.mode);
       } else if (result.status === 'failed' || result.status === 'cancelled') {
         clearInterval(pollTimer);
         pollTimer = null;
@@ -219,7 +224,7 @@ redeemBtn.addEventListener('click', () =>
     const code = document.getElementById('redeem-code').value.trim().toUpperCase();
     try {
       const result = await api('/portal/vouchers/redeem', { method: 'POST', body: JSON.stringify({ code }) });
-      onVoucherActivated(result.voucher, 'voucher_code');
+      onVoucherActivated(result.voucher, 'voucher_code', result.mode);
     } catch (err) {
       showBanner(err.message, 'error');
     }
@@ -312,7 +317,11 @@ function handleVoucherActivatedRedirect() {
   const code = params.get('code');
   if (params.get('voucher_activated') === '1' && code) {
     loginToHotspot(params.get('mikrotik_username'));
-    showBanner("You're connected! Enjoy your browsing.", 'success');
+    const mode = params.get('mode');
+    showBanner(
+      mode === 'extended' ? 'Time added — your connection keeps going.' : "You're connected! Enjoy your browsing.",
+      'success'
+    );
     showReceipt({
       code,
       packageName: params.get('package') || 'WiFi Access',

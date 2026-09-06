@@ -101,7 +101,7 @@ router.get(
     ).run(voucher.price, voucher.id, paymentRequest.user_id);
     loyalty.awardForSale(paymentRequest.user_id);
 
-    res.json({ status: 'paid', voucher: activation.voucher });
+    res.json({ status: 'paid', voucher: activation.voucher, mode: activation.mode });
   })
 );
 
@@ -138,7 +138,7 @@ router.post(
   })
 );
 
-function receiptRedirectUrl(voucher, pkg, method) {
+function receiptRedirectUrl(voucher, pkg, method, mode) {
   const params = new URLSearchParams({
     voucher_activated: '1',
     code: voucher.code,
@@ -147,6 +147,7 @@ function receiptRedirectUrl(voucher, pkg, method) {
     duration: String(voucher.duration_seconds),
     price: String(voucher.price),
     method,
+    mode: mode || 'activated',
   });
   return `/?${params.toString()}`;
 }
@@ -184,7 +185,7 @@ router.get(
     loyalty.awardForSale(paymentRequest.user_id);
 
     const pkg = vouchers.getPackage(paymentRequest.package_id);
-    res.redirect(receiptRedirectUrl(activation.voucher, pkg, 'stripe'));
+    res.redirect(receiptRedirectUrl(activation.voucher, pkg, 'stripe', activation.mode));
   })
 );
 
