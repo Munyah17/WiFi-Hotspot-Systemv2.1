@@ -60,12 +60,14 @@ and creates the super admin account from `ADMIN_PHONE` / `ADMIN_PASSWORD` in `.e
 ### Running on an Android tablet (Termux)
 
 ```
-pkg install nodejs-lts
-# better-sqlite3 needs build tools to compile its native binding:
-pkg install python make clang
+pkg install nodejs   # needs Node 22.5+ for the built-in node:sqlite module; nodejs-lts may be older
+node --version        # confirm >= 22.5.0
 npm install
 npm start
 ```
+
+No native build toolchain needed — the database uses Node's built-in `node:sqlite`
+(see below), not a compiled addon like `better-sqlite3`.
 
 Keep Termux running in the background: `termux-wake-lock`, and consider `termux-boot` so
 the app restarts automatically if the tablet reboots.
@@ -104,12 +106,19 @@ built from their published API shape but has **not been tested against a live Pa
 account** — verify it against Paynow's sandbox before taking real payments, and adjust the
 field order in `initiateMobilePayment` if their API rejects the hash.
 
-## Pause / Continue
+## Pause / Continue / Top-up
 
 MikroTik's hotspot `limit-uptime` already tracks *accumulated connected time*, not
 wall-clock time — disconnecting doesn't burn the customer's remaining balance. Pause
 disables the hotspot login and kicks the active session; Continue re-enables it. No
 manual voucher re-entry needed.
+
+Buying more time (a second voucher, another EcoCash top-up, a cashier's "Extend Access")
+while a session is already active or paused on that device adds the time straight onto
+the existing MikroTik login via `extendHotspotUser` — it does **not** create a second,
+conflicting login. Only when there's no session running yet does a voucher start a fresh
+one (or, for a cashier topping up a customer who isn't currently connected, get credited
+to their account for them to redeem later).
 
 ## Device binding
 
@@ -131,9 +140,9 @@ src/
   config.js              env/config, default packages
   db/schema.sql           SQLite schema
   services/
-    db.js                 SQLite connection + seeding
-    mikrotik.js            RouterOS API client (add/remove hotspot users, active sessions, ARP lookup)
-    vouchers.js            voucher issuing/activation, pause/continue
+    db.js                 SQLite connection (Node's built-in node:sqlite) + seeding
+    mikrotik.js            RouterOS API client (add/remove/extend hotspot users, active sessions, ARP lookup)
+    vouchers.js            voucher issuing (single + batch), activation, extend-in-place top-up, pause/continue
     payments/paynow.js     EcoCash/OneMoney via Paynow
     payments/stripe.js     card payments via Stripe Checkout
   middleware/auth.js       role-based route guards
@@ -143,13 +152,22 @@ public/                    portal, cashier, and admin front-ends (Tailwind CDN +
 
 ## Business management layer
 
-Beyond the voucher/payment core: cashier shift open/close with cash reconciliation
-(`/cashier`), customer lookup with account suspend/activate, "extend access" (credit a
-voucher to an account), loyalty points (1 per completed sale, manually adjustable), an
-admin audit log of staff/admin actions, a sales/reports view with date-range filtering, and
-a basic shop/inventory module with walk-in accessory sales. Staff edit is name/role only —
-no hard delete, since past vouchers/sales stay attributed to the staff member who created
-them; suspend a staff account instead.
+Beyond the voucher/payment core:
+
+- **Cashier** (`/cashier`): shift open/close with cash reconciliation, customer lookup with
+  account suspend/activate, "Extend Access" (tops up an active session in place, or credits
+  a voucher to the account if they're not currently connected), a "Sell a Pre-Printed
+  Voucher" box to record the sale of a batch-generated code at the moment it's handed over,
+  and loyalty points (1 per completed sale, manually adjustable).
+- **Admin** (`/admin`): 1-click bulk voucher generation (pick a package, enter a quantity,
+  get a print-ready sheet of unique codes — no MikroTik calls until each is redeemed),
+  an audit log of staff/admin actions, a sales/reports view with date-range filtering, and a
+  basic shop/inventory module with walk-in accessory sales. Staff edit is name/role only —
+  no hard delete, since past vouchers/sales stay attributed to the staff member who created
+  them; suspend a staff account instead.
+- **Self-service receipt**: every checkout path (redeem code, EcoCash/OneMoney, Stripe)
+  shows a printable receipt afterward with the code, package, price, and plain-language
+  usage directions.
 
 ## Not built yet (deliberately out of scope for now)
 
