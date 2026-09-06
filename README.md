@@ -74,20 +74,10 @@ the app restarts automatically if the tablet reboots.
 
 ## MikroTik configuration (RouterOS / WinBox)
 
-1. Set up the hotspot as normal (`IP > Hotspot > Hotspot Setup`) on the interface serving
-   your open WiFi network.
-2. Point the hotspot's login page at this app instead of the built-in one, or simply direct
-   customers to `http://<LOCAL_APP_HOST>:<PORT>/` — MikroTik redirects unauthenticated
-   HTTP traffic there automatically once it's in the walled garden.
-3. Add walled-garden entries (`IP > Hotspot > Walled Garden`) so unauthenticated devices can
-   reach:
-   - This app's IP/port (`<LOCAL_APP_HOST>:<PORT>`)
-   - Stripe's checkout domains, if you enable card payments: `checkout.stripe.com`,
-     `js.stripe.com`, `api.stripe.com` (Stripe may use a few more subdomains for fraud
-     checks — check your Stripe dashboard's checkout logs if a card payment gets stuck)
-   - EcoCash/Paynow do **not** need a walled-garden entry — see below.
-4. In the API settings (`IP > Services`), make sure the API service (port 8728) is enabled
-   and reachable from this app's device, and create/use the router user in `.env`.
+Full step-by-step setup — hotspot wizard, a least-privilege API user, the login.html
+redirect (and the HTTP PAP setting it depends on), walled garden entries, and a
+troubleshooting table — is in **[MIKROTIK_INTEGRATION.md](MIKROTIK_INTEGRATION.md)**. Do
+this once the software side has been tested in `MOCK_MODE`.
 
 ## How digital payment works inside the walled garden
 
